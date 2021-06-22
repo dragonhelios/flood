@@ -1,4 +1,4 @@
-import {FC, useState} from 'react';
+import {FC, useEffect, useState} from 'react';
 import {Trans, useLingui} from '@lingui/react';
 
 import {FormGroup, FormRow, Textbox} from '@client/ui';
@@ -7,10 +7,11 @@ import type {QBittorrentConnectionSettings} from '@shared/schema/ClientConnectio
 
 export interface QBittorrentConnectionSettingsProps {
   onSettingsChange: (settings: QBittorrentConnectionSettings | null) => void;
+  initialSettings?: QBittorrentConnectionSettings | null;
 }
 
 const QBittorrentConnectionSettingsForm: FC<QBittorrentConnectionSettingsProps> = ({
-  onSettingsChange,
+  onSettingsChange, initialSettings = null
 }: QBittorrentConnectionSettingsProps) => {
   const {i18n} = useLingui();
   const [settings, setSettings] = useState<QBittorrentConnectionSettings>({
@@ -21,6 +22,10 @@ const QBittorrentConnectionSettingsForm: FC<QBittorrentConnectionSettingsProps> 
     username: '',
     password: '',
   });
+
+  useEffect(() => {
+    if (initialSettings) setSettings(initialSettings);
+  }, [initialSettings]);
 
   const handleFormChange = (field: 'url' | 'username' | 'password', value: string): void => {
     const newSettings = {
@@ -46,6 +51,7 @@ const QBittorrentConnectionSettingsForm: FC<QBittorrentConnectionSettingsProps> 
             id="url"
             label={<Trans id="connection.settings.qbittorrent.url" />}
             placeholder={i18n._('connection.settings.qbittorrent.url.input.placeholder')}
+            value={initialSettings?.url}
           />
         </FormRow>
         <FormRow>
@@ -55,6 +61,7 @@ const QBittorrentConnectionSettingsForm: FC<QBittorrentConnectionSettingsProps> 
             label={<Trans id="connection.settings.qbittorrent.username" />}
             placeholder={i18n._('connection.settings.qbittorrent.username.input.placeholder')}
             autoComplete="off"
+            value={initialSettings?.username}
           />
           <Textbox
             onChange={(e) => handleFormChange('password', e.target.value)}
@@ -63,11 +70,17 @@ const QBittorrentConnectionSettingsForm: FC<QBittorrentConnectionSettingsProps> 
             placeholder={i18n._('connection.settings.qbittorrent.password.input.placeholder')}
             autoComplete="off"
             type="password"
+            value={initialSettings?.password}
           />
         </FormRow>
       </FormGroup>
     </FormRow>
   );
+};
+
+(QBittorrentConnectionSettingsForm as FC<QBittorrentConnectionSettingsProps>).defaultProps = {
+  initialSettings:null,
+  onSettingsChange: undefined
 };
 
 export default QBittorrentConnectionSettingsForm;

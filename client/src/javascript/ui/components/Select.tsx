@@ -19,6 +19,7 @@ interface SelectProps {
   id: string | number;
   children: ReactNode;
   defaultID?: string | number;
+  selectID?: string | number;
   additionalClassNames?: string;
   width?: FormRowItemProps['width'];
   priority?: ButtonProps['priority'];
@@ -39,6 +40,7 @@ const Select: FC<SelectProps> = ({
   additionalClassNames,
   children,
   defaultID,
+  selectID,
   disabled,
   label,
   labelOffset,
@@ -60,7 +62,7 @@ const Select: FC<SelectProps> = ({
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [selectedID, setSelectedID] = useState<string | number>(
-    defaultID ??
+    (selectID) ?? (defaultID) ??
       (
         (children as ReactNodeArray)?.find(
           (child) => (child as ReactElement<SelectItemProps>)?.props?.id != null,
@@ -107,6 +109,12 @@ const Select: FC<SelectProps> = ({
       onClose?.();
     }
   }, [isOpen, onClose, onOpen]);
+
+  useEffect(() => {
+    if (selectID) {
+      setSelectedID(selectID)
+    }
+  }, [selectID]);
 
   useEffect(() => {
     onSelect?.(selectedID);
@@ -201,6 +209,7 @@ Select.defaultProps = {
   labelOffset: undefined,
   persistentPlaceholder: false,
   priority: 'quaternary',
+  selectID: undefined
 };
 
 export default Select;

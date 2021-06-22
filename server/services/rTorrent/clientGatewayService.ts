@@ -731,8 +731,8 @@ class RTorrentClientGatewayService extends ClientGatewayService {
     return this.clientRequestManager
       .methodCall('system.multicall', [methodCalls])
       .then(this.processClientRequestSuccess, this.processRTorrentRequestError)
-      .then((response) => {
-        return processMethodCallResponse(response, clientSettingMethodCallConfigs);
+      .then(async (response) => {
+        return await processMethodCallResponse(response, clientSettingMethodCallConfigs);
       });
   }
 
@@ -796,8 +796,8 @@ class RTorrentClientGatewayService extends ClientGatewayService {
     transferSummary: string[];
   }> {
     let methodList: Array<string> = [];
-    const listMethods = () => {
-      return this.clientRequestManager
+    const listMethods = async () => {
+      return await this.clientRequestManager
         .methodCall('system.listMethods', [])
         .then(this.processClientRequestSuccess, this.processRTorrentRequestError);
     };

@@ -4,8 +4,8 @@ import {FC, useEffect, useRef, useState} from 'react';
 import {observer} from 'mobx-react';
 import {Trans, useLingui} from '@lingui/react';
 
-import {Button, Checkbox, Form, FormError, FormRowItem, FormRow, LoadingRing, Textbox} from '@client/ui';
-import {Close} from '@client/ui/icons';
+import {Button, Checkbox, Form, FormError, FormRow, FormRowItem, LoadingRing, Textbox} from '@client/ui';
+import {Close, Edit} from '@client/ui/icons';
 import AuthActions from '@client/actions/AuthActions';
 import AuthStore from '@client/stores/AuthStore';
 
@@ -29,6 +29,10 @@ const AuthTab: FC = observer(() => {
   const [error, setError] = useState<string | null>(null);
   const [isUserListFetched, setIsUserListFetched] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [userName, setUserName] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<Credentials | null>(null);
   const {i18n} = useLingui();
 
   useEffect(() => {
@@ -43,11 +47,11 @@ const AuthTab: FC = observer(() => {
     return (
       <Form>
         <ModalFormSectionHeader>
-          <Trans id="auth.user.accounts" />
+          <Trans id="auth.user.accounts"/>
         </ModalFormSectionHeader>
         <FormRow>
           <FormError>
-            <Trans id="auth.message.not.admin" />
+            <Trans id="auth.message.not.admin"/>
           </FormError>
         </FormRow>
       </Form>
@@ -58,6 +62,40 @@ const AuthTab: FC = observer(() => {
   const interactiveListClasses = classnames('interactive-list', {
     'interactive-list--loading': isLoading,
   });
+
+  function updateUser(user: Credentials) {
+    if (user) {
+      setSelectedUser(user);
+      setUserName(user.username);
+      setIsAdmin(user.level === AccessLevel.ADMINISTRATOR);
+      setIsUpdating(true);
+    }
+  }
+
+  function handleNameChange(event:HTMLInputElement) {
+    setUserName(event.value);
+  }
+
+  function cancelUpdateUser() {
+
+    setSelectedUser({
+      username: '',
+      password: '',
+      client: {
+        client: 'rTorrent',
+        type: 'rpc',
+        username: '',
+        password: '',
+        url: '',
+        version: 1,
+      },
+      level: AccessLevel.USER
+    });
+    setUserName('');
+    setIsAdmin(false);
+    setIsUpdating(false);
+    formRef?.current?.resetForm();
+  }
 
   return (
     <Form
@@ -82,6 +120,31 @@ const AuthTab: FC = observer(() => {
             return;
           }
 
+          if (isUpdating && selectedUser) {
+            AuthActions.updateUser(selectedUser.username, {
+              username: formData.username,
+              password: formData.password,
+              client: connectionSettings,
+              level: formData.isAdmin === true ? AccessLevel.ADMINISTRATOR : AccessLevel.USER,
+            })
+              .then(
+                () => {
+                  cancelUpdateUser();
+                  if (formRef.current != null) {
+                    formRef.current.resetForm();
+                  }
+                  setError(null);
+                  setIsSubmitting(false);
+                },
+                () => {
+                  setError('general.error.unknown');
+                  setIsSubmitting(false);
+                },
+              )
+              .then(AuthActions.fetchUsers);
+            return;
+          }
+
           AuthActions.createUser({
             username: formData.username,
             password: formData.password,
@@ -101,12 +164,12 @@ const AuthTab: FC = observer(() => {
                 setIsSubmitting(false);
               },
             )
-            .then(AuthActions.fetchUsers);
+            .then(AuthActions.fetchUsers)
         }
       }}
       ref={formRef}>
       <ModalFormSectionHeader>
-        <Trans id="auth.user.accounts" />
+        <Trans id="auth.user.accounts"/>
       </ModalFormSectionHeader>
       <FormRow>
         <FormRowItem>
@@ -128,19 +191,31 @@ const AuthTab: FC = observer(() => {
                 let badge = null;
                 let removeIcon = null;
 
+                const updateIcon = (
+                  <button
+                    className="interactive-list__icon interactive-list__icon--action interactive-list__icon--action--danger"
+                    type="button"
+                    onClick={() => updateUser(user)}
+                    disabled={isUpdating}
+                    style={{marginLeft: '5px'}}>
+                    <Edit/>
+                  </button>
+                );
+
                 if (!isCurrentUser) {
                   removeIcon = (
                     <button
-                      className="interactive-list__icon interactive-list__icon--action interactive-list__icon--action--warning"
+                      className='interactive-list__icon interactive-list__icon--action interactive-list__icon--action--warning'
                       type="button"
+                      disabled={isUpdating}
                       onClick={() => AuthActions.deleteUser(user.username).then(AuthActions.fetchUsers)}>
-                      <Close />
+                      <Close/>
                     </button>
                   );
                 } else {
                   badge = (
                     <span className="interactive-list__label__tag tag">
-                      <Trans id="auth.current.user" />
+                      <Trans id="auth.current.user"/>
                     </span>
                   );
                 }
@@ -155,6 +230,7 @@ const AuthTab: FC = observer(() => {
                       <div className="interactive-list__label__text">{user.username}</div>
                       {badge}
                     </span>
+                    {updateIcon}
                     {removeIcon}
                   </li>
                 );
@@ -163,7 +239,7 @@ const AuthTab: FC = observer(() => {
         </FormRowItem>
       </FormRow>
       <ModalFormSectionHeader>
-        <Trans id="auth.add.user" />
+        <Trans id={isUpdating ? "auth.edit.user" : "auth.add.user"}/>
       </ModalFormSectionHeader>
       {error && (
         <FormRow>
@@ -173,33 +249,44 @@ const AuthTab: FC = observer(() => {
       <FormRow>
         <Textbox
           id="username"
-          label={<Trans id="auth.username" />}
+          label={<Trans id="auth.username"/>}
           placeholder={i18n._('auth.username')}
           autoComplete="username"
+          value={userName}
+          onChange={(element) => handleNameChange(element.target)}
         />
         <Textbox
           id="password"
-          label={<Trans id="auth.password" />}
+          label={<Trans id="auth.password"/>}
           placeholder={i18n._('auth.password')}
           autoComplete="new-password"
+          type="password"
         />
-        <Checkbox grow={false} id="isAdmin" labelOffset matchTextboxHeight>
-          <Trans id="auth.admin" />
+        <Checkbox grow={false} id="isAdmin" labelOffset matchTextboxHeight
+                  checked={isAdmin}
+                  onClick={() => setIsAdmin(!isAdmin)}
+        >
+          <Trans id="auth.admin"/>
         </Checkbox>
       </FormRow>
       <ClientConnectionSettingsForm
         onSettingsChange={(settings) => {
           clientConnectionSettingsRef.current = settings;
         }}
+        initialSettings={selectedUser?.client}
       />
-      <p />
+      <p/>
       <FormRow justify="end">
+        <Button isLoading={isSubmitting} priority="primary" type="submit" disabled={!isUpdating} onClick={() => cancelUpdateUser()}>
+          <Trans id="button.cancel"/>
+        </Button>
         <Button isLoading={isSubmitting} priority="primary" type="submit">
-          <Trans id="button.add" />
+          <Trans id={isUpdating?"button.update":"button.add"}/>
         </Button>
       </FormRow>
     </Form>
-  );
+  )
+    ;
 });
 
 export default AuthTab;

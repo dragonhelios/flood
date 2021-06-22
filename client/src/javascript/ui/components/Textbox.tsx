@@ -8,7 +8,7 @@ import type {FormRowItemProps} from './FormRowItem';
 
 type TextboxProps = Pick<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'children' | 'disabled' | 'defaultValue' | 'placeholder' | 'readOnly' | 'onChange' | 'onClick' | 'autoComplete'
+  'children' | 'disabled' | 'defaultValue' | 'placeholder' | 'readOnly' | 'onChange' | 'onClick' | 'autoComplete' | 'value'
 > & {
   id: string;
   label?: React.ReactNode;
@@ -30,6 +30,7 @@ const Textbox = forwardRef<HTMLInputElement, TextboxProps>(
       wrapperClassName,
       width,
       defaultValue,
+      value,
       placeholder,
       autoComplete,
       type,
@@ -82,6 +83,7 @@ const Textbox = forwardRef<HTMLInputElement, TextboxProps>(
             autoComplete={autoComplete}
             disabled={disabled}
             readOnly={readOnly}
+            value={value}
           />
           {childElements}
         </div>

@@ -43,9 +43,21 @@ const rTorrentSocketConnectionSettingsSchema = strictObject({
 
 export type RTorrentSocketConnectionSettings = zodInfer<typeof rTorrentSocketConnectionSettingsSchema>;
 
+const rTorrentRPCConnectionSettingsSchema = strictObject({
+  client: literal('rTorrent'),
+  type: literal('rpc'),
+  version: literal(1),
+  url: string().url(),
+  username: string(),
+  password: string(),
+});
+
+export type RTorrentRPCConnectionSettings = zodInfer<typeof rTorrentRPCConnectionSettingsSchema>;
+
 const rTorrentConnectionSettingsSchema = union([
   rTorrentTCPConnectionSettingsSchema,
   rTorrentSocketConnectionSettingsSchema,
+  rTorrentRPCConnectionSettingsSchema,
 ]);
 
 export type RTorrentConnectionSettings = zodInfer<typeof rTorrentConnectionSettingsSchema>;
