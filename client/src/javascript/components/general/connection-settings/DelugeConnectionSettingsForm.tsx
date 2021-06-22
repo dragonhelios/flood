@@ -1,4 +1,4 @@
-import {FC, useState} from 'react';
+import {FC, useEffect, useState} from 'react';
 import {Trans, useLingui} from '@lingui/react';
 
 import {FormGroup, FormRow, FormRowGroup, Textbox} from '@client/ui';
@@ -7,13 +7,12 @@ import type {DelugeConnectionSettings} from '@shared/schema/ClientConnectionSett
 
 export interface DelugeConnectionSettingsProps {
   onSettingsChange: (settings: DelugeConnectionSettings | null) => void;
+  initialSettings?: DelugeConnectionSettings | null;
 }
 
-const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({
-  onSettingsChange,
-}: DelugeConnectionSettingsProps) => {
+const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({onSettingsChange, initialSettings = null}: DelugeConnectionSettingsProps) => {
   const {i18n} = useLingui();
-  const [settings, setSettings] = useState<DelugeConnectionSettings>({
+  const [settings, setSettings] = useState<DelugeConnectionSettings>( {
     client: 'Deluge',
     type: 'rpc',
     version: 1,
@@ -22,6 +21,10 @@ const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({
     username: '',
     password: '',
   });
+
+  useEffect(() => {
+    if (initialSettings) setSettings(initialSettings);
+  }, [initialSettings]);
 
   const handleFormChange = (field: 'host' | 'port' | 'username' | 'password', value: string | number): void => {
     const newSettings = {
@@ -46,14 +49,16 @@ const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({
             <Textbox
               onChange={(e) => handleFormChange('host', e.target.value)}
               id="host"
-              label={<Trans id="connection.settings.deluge.host" />}
+              label={<Trans id="connection.settings.deluge.host"/>}
               placeholder={i18n._('connection.settings.deluge.host.input.placeholder')}
+              value={initialSettings?.host}
             />
             <Textbox
               onChange={(e) => handleFormChange('port', Number(e.target.value))}
               id="port"
-              label={<Trans id="connection.settings.deluge.port" />}
+              label={<Trans id="connection.settings.deluge.port"/>}
               placeholder={i18n._('connection.settings.deluge.port.input.placeholder')}
+              value={initialSettings?.port}
             />
           </FormRow>
         </FormRowGroup>
@@ -62,17 +67,19 @@ const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({
             <Textbox
               onChange={(e) => handleFormChange('username', e.target.value)}
               id="deluge-username"
-              label={<Trans id="connection.settings.deluge.username" />}
+              label={<Trans id="connection.settings.deluge.username"/>}
               placeholder={i18n._('connection.settings.deluge.username.input.placeholder')}
               autoComplete="off"
+              value={initialSettings?.username}
             />
             <Textbox
               onChange={(e) => handleFormChange('password', e.target.value)}
               id="deluge-password"
-              label={<Trans id="connection.settings.deluge.password" />}
+              label={<Trans id="connection.settings.deluge.password"/>}
               placeholder={i18n._('connection.settings.deluge.password.input.placeholder')}
               autoComplete="off"
               type="password"
+              value={initialSettings?.password}
             />
           </FormRow>
         </FormRowGroup>
@@ -81,4 +88,8 @@ const DelugeConnectionSettingsForm: FC<DelugeConnectionSettingsProps> = ({
   );
 };
 
+(DelugeConnectionSettingsForm as FC<DelugeConnectionSettingsProps>).defaultProps = {
+  initialSettings:null,
+  onSettingsChange: undefined
+};
 export default DelugeConnectionSettingsForm;

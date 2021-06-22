@@ -1,11 +1,16 @@
 import type {NetConnectOpts} from 'net';
 
-import type {RTorrentConnectionSettings} from '@shared/schema/ClientConnectionSettings';
+import type {
+  RTorrentConnectionSettings,
+  RTorrentRPCConnectionSettings, RTorrentSocketConnectionSettings,
+  RTorrentTCPConnectionSettings,
+} from '@shared/schema/ClientConnectionSettings';
 
 import {methodCallJSON, methodCallXML} from './util/scgiUtil';
 import {sanitizePath} from '../../util/fileUtil';
 
 import type {MultiMethodCalls} from './util/rTorrentMethodCallUtil';
+import {sendXmlRPCMethodCall} from './util/XMLRPCUtil';
 
 type MethodCallParameters = Array<string | Buffer | MultiMethodCalls>;
 
@@ -61,19 +66,46 @@ class ClientRequestManager {
   };
 
   sendMethodCall = (methodName: string, parameters: MethodCallParameters) => {
+    const connectionType = this.connectionSettings.type;
+
+    if (connectionType === 'rpc') {
+      return this.sendMethodCallRPC(methodName, parameters);
+    }
+
     const connectionOptions: NetConnectOpts =
-      this.connectionSettings.type === 'socket'
+      connectionType === 'socket'
         ? {
-            path: this.connectionSettings.socket,
+            path: (this.connectionSettings as RTorrentSocketConnectionSettings).socket,
           }
         : {
-            host: this.connectionSettings.host,
-            port: this.connectionSettings.port,
+            host: (this.connectionSettings as RTorrentTCPConnectionSettings).host,
+            port: (this.connectionSettings as RTorrentTCPConnectionSettings).port,
           };
 
     const methodCall = this.isJSONCapable
       ? methodCallJSON(connectionOptions, methodName, parameters)
       : methodCallXML(connectionOptions, methodName, parameters);
+
+    return methodCall.then(
+      (response) => {
+        this.handleRequestEnd();
+        return response;
+      },
+      (error) => {
+        this.handleRequestEnd();
+        throw error;
+      },
+    );
+  };
+
+  sendMethodCallRPC = (methodName: string, parameters: MethodCallParameters) => {
+    const connectionOptionsRPC: {url: string; username: string; password: string} = {
+      url: (this.connectionSettings as RTorrentRPCConnectionSettings).url,
+      username: (this.connectionSettings as RTorrentRPCConnectionSettings).username,
+      password: (this.connectionSettings as RTorrentRPCConnectionSettings).password,
+    };
+
+    const methodCall = sendXmlRPCMethodCall(connectionOptionsRPC, methodName, parameters);
 
     return methodCall.then(
       (response) => {

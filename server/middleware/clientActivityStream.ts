@@ -87,7 +87,7 @@ export default async (req: Request<unknown, unknown, unknown, {historySnapshot: 
   });
 
   // Torrent list
-  const torrentList = (await fetchTorrentList) || serviceInstances.torrentService.getTorrentListSummary();
+  const torrentList = (await fetchTorrentList) || (await serviceInstances.torrentService.getTorrentListSummary());
   serverEvent.emit(torrentList.id, 'TORRENT_LIST_FULL_UPDATE', torrentList.torrents);
   handleEvents(
     serviceInstances.torrentService,

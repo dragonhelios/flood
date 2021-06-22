@@ -11,6 +11,8 @@ $red: #f34570;
 $red--alpha--light: rgba($red, 0.1);
 $red--alpha--medium: rgba($red, 0.2);
 
+$orange: #ff9900;
+
 $blue: #349cf4;
 $blue--light: color.adjust($blue, $lightness: 7%);
 $blue--lighter: color.adjust($blue, $lightness: 40%);

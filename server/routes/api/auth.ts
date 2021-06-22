@@ -276,6 +276,8 @@ router.get('/users', async (_req, res): Promise<Response> => {
         users.map((user) => ({
           username: user.username,
           level: user.level,
+          client: user.client,
+          password: user.password,
         })),
       ),
     ({code, message}) => res.status(500).json({code, message}),
