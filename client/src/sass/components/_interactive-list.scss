@@ -20,6 +20,7 @@ $interactive-list--item--detail--tertiary--foreground: color.adjust(
 );
 
 $interactive-list--item--icon--fill: rgba($interactive-list--item--foreground, 0.5);
+$interactive-list--item--icon--fill--hard: rgba($interactive-list--item--foreground, 0.9);
 $interactive-list--item--icon--fill--hover: #fff;
 
 $interactive-list--item--padding--horizontal: variables.$form--element--padding--x;
@@ -79,6 +80,11 @@ $interactive-list--detail-list--item--padding--vertical: 0;
 
     &:last-child {
       border-bottom: none;
+    }
+
+    &--select {
+      color: colors.$dark-grey;
+      background: colors.$medium-grey;
     }
 
     &--stacked-content {
@@ -163,8 +169,20 @@ $interactive-list--detail-list--item--padding--vertical: 0;
       transition: fill speed.$speed--x-fast;
     }
 
+    &--hard .icon {
+      height: 12px;
+      width: 12px;
+      fill: $interactive-list--item--icon--fill--hard;
+      transition: fill speed.$speed--x-fast;
+    }
+
     &--action {
       transition: background speed.$speed--xx-fast;
+
+      &--hard {
+        fill: $interactive-list--item--icon--fill--hard;
+        transition: fill speed.$speed--x-fast;
+      }
 
       &:focus {
         outline: none;
@@ -192,6 +210,10 @@ $interactive-list--detail-list--item--padding--vertical: 0;
         &:hover {
           background: colors.$red;
         }
+      }
+
+      &--disabled {
+        cursor: default;
       }
 
       & + .interactive-list__icon--action {
