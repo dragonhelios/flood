@@ -30,9 +30,11 @@ const AuthTab: FC = observer(() => {
   const [isUserListFetched, setIsUserListFetched] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [isUpdated, setIsUpdated] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [userName, setUserName] = useState<string>('');
+  const [updateUserName, setUpdateUserName] = useState('');
   const [selectedUser, setSelectedUser] = useState<Credentials | null>(null);
+
   const {i18n} = useLingui();
 
   useEffect(() => {
@@ -47,11 +49,11 @@ const AuthTab: FC = observer(() => {
     return (
       <Form>
         <ModalFormSectionHeader>
-          <Trans id="auth.user.accounts"/>
+          <Trans id="auth.user.accounts" />
         </ModalFormSectionHeader>
         <FormRow>
           <FormError>
-            <Trans id="auth.message.not.admin"/>
+            <Trans id="auth.message.not.admin" />
           </FormError>
         </FormRow>
       </Form>
@@ -63,21 +65,38 @@ const AuthTab: FC = observer(() => {
     'interactive-list--loading': isLoading,
   });
 
+  const onSettingsChange = (settings: ClientConnectionSettings) => {
+    if (settings) {
+      clientConnectionSettingsRef.current = settings;
+
+      if (isUpdating) setIsUpdated(true);
+    }
+  };
+
   function updateUser(user: Credentials) {
     if (user) {
       setSelectedUser(user);
-      setUserName(user.username);
+      setUpdateUserName(user.username);
       setIsAdmin(user.level === AccessLevel.ADMINISTRATOR);
       setIsUpdating(true);
+      setIsUpdated(false);
+      clientConnectionSettingsRef.current = user.client;
     }
   }
 
-  function handleNameChange(event:HTMLInputElement) {
-    setUserName(event.value);
+  function handleUserChange(field: 'username' | 'password', target: HTMLInputElement) {
+    if (selectedUser) {
+      const newUser: Credentials = {
+        ...selectedUser,
+        [field]: target.value,
+      };
+
+      if (isUpdating) setIsUpdated(true);
+      setSelectedUser(newUser);
+    }
   }
 
   function cancelUpdateUser() {
-
     setSelectedUser({
       username: '',
       password: '',
@@ -88,18 +107,30 @@ const AuthTab: FC = observer(() => {
         password: '',
         url: '',
         version: 1,
+        isRemote: false,
+        sftpHost: '',
+        sftpPort: 0,
+        sftpUser: '',
+        sftpPassword: '',
+        localPath: '',
+        isDefaultDownload: false,
       },
-      level: AccessLevel.USER
+      level: AccessLevel.USER,
     });
-    setUserName('');
     setIsAdmin(false);
     setIsUpdating(false);
+    setIsUpdated(false);
+    setUpdateUserName('');
     formRef?.current?.resetForm();
   }
 
   return (
     <Form
       onSubmit={() => {
+        if (selectedUser && !clientConnectionSettingsRef.current) {
+          clientConnectionSettingsRef.current = selectedUser.client;
+        }
+
         if (formRef.current == null || clientConnectionSettingsRef.current == null) {
           return;
         }
@@ -114,14 +145,15 @@ const AuthTab: FC = observer(() => {
           setIsSubmitting(true);
 
           const connectionSettings = clientConnectionSettingsRef.current;
+
           if (connectionSettings == null) {
             setError('connection.settings.error.empty');
             setIsSubmitting(false);
             return;
           }
 
-          if (isUpdating && selectedUser) {
-            AuthActions.updateUser(selectedUser.username, {
+          if (isUpdated && selectedUser) {
+            AuthActions.updateUser(updateUserName, {
               username: formData.username,
               password: formData.password,
               client: connectionSettings,
@@ -164,12 +196,12 @@ const AuthTab: FC = observer(() => {
                 setIsSubmitting(false);
               },
             )
-            .then(AuthActions.fetchUsers)
+            .then(AuthActions.fetchUsers);
         }
       }}
       ref={formRef}>
       <ModalFormSectionHeader>
-        <Trans id="auth.user.accounts"/>
+        <Trans id="auth.user.accounts" />
       </ModalFormSectionHeader>
       <FormRow>
         <FormRowItem>
@@ -198,24 +230,24 @@ const AuthTab: FC = observer(() => {
                     onClick={() => updateUser(user)}
                     disabled={isUpdating}
                     style={{marginLeft: '5px'}}>
-                    <Edit/>
+                    <Edit />
                   </button>
                 );
 
                 if (!isCurrentUser) {
                   removeIcon = (
                     <button
-                      className='interactive-list__icon interactive-list__icon--action interactive-list__icon--action--warning'
+                      className="interactive-list__icon interactive-list__icon--action interactive-list__icon--action--warning"
                       type="button"
                       disabled={isUpdating}
                       onClick={() => AuthActions.deleteUser(user.username).then(AuthActions.fetchUsers)}>
-                      <Close/>
+                      <Close />
                     </button>
                   );
                 } else {
                   badge = (
                     <span className="interactive-list__label__tag tag">
-                      <Trans id="auth.current.user"/>
+                      <Trans id="auth.current.user" />
                     </span>
                   );
                 }
@@ -239,7 +271,7 @@ const AuthTab: FC = observer(() => {
         </FormRowItem>
       </FormRow>
       <ModalFormSectionHeader>
-        <Trans id={isUpdating ? "auth.edit.user" : "auth.add.user"}/>
+        <Trans id={isUpdating ? 'auth.edit.user' : 'auth.add.user'} />
       </ModalFormSectionHeader>
       {error && (
         <FormRow>
@@ -249,44 +281,51 @@ const AuthTab: FC = observer(() => {
       <FormRow>
         <Textbox
           id="username"
-          label={<Trans id="auth.username"/>}
+          label={<Trans id="auth.username" />}
           placeholder={i18n._('auth.username')}
           autoComplete="username"
-          value={userName}
-          onChange={(element) => handleNameChange(element.target)}
+          value={selectedUser?.username ?? ''}
+          onChange={(element) => handleUserChange('username', element.target)}
         />
         <Textbox
           id="password"
-          label={<Trans id="auth.password"/>}
+          label={<Trans id="auth.password" />}
           placeholder={i18n._('auth.password')}
           autoComplete="new-password"
           type="password"
+          value={selectedUser?.password ?? ''}
+          onChange={(element) => handleUserChange('password', element.target)}
         />
-        <Checkbox grow={false} id="isAdmin" labelOffset matchTextboxHeight
-                  checked={isAdmin}
-                  onClick={() => setIsAdmin(!isAdmin)}
-        >
-          <Trans id="auth.admin"/>
+        <Checkbox
+          grow={false}
+          id="isAdmin"
+          labelOffset
+          matchTextboxHeight
+          checked={isAdmin}
+          onClick={() => setIsAdmin(!isAdmin)}>
+          <Trans id="auth.admin" />
         </Checkbox>
       </FormRow>
       <ClientConnectionSettingsForm
-        onSettingsChange={(settings) => {
-          clientConnectionSettingsRef.current = settings;
-        }}
+        onSettingsChange={(settings) => onSettingsChange(settings as ClientConnectionSettings)}
         initialSettings={selectedUser?.client}
       />
-      <p/>
+      <p />
       <FormRow justify="end">
-        <Button isLoading={isSubmitting} priority="primary" type="submit" disabled={!isUpdating} onClick={() => cancelUpdateUser()}>
-          <Trans id="button.cancel"/>
+        <Button
+          isLoading={isSubmitting}
+          priority="primary"
+          type="submit"
+          disabled={!isUpdating}
+          onClick={() => cancelUpdateUser()}>
+          <Trans id="button.cancel" />
         </Button>
-        <Button isLoading={isSubmitting} priority="primary" type="submit">
-          <Trans id={isUpdating?"button.update":"button.add"}/>
+        <Button isLoading={isSubmitting} priority="primary" type="submit" disabled={isUpdating && !isUpdated}>
+          <Trans id={isUpdating ? 'button.update' : 'button.add'} />
         </Button>
       </FormRow>
     </Form>
-  )
-    ;
+  );
 });
 
 export default AuthTab;
