@@ -2,13 +2,17 @@ import {FC, ReactNode, useEffect, useState} from 'react';
 import {Trans, useLingui} from '@lingui/react';
 import {usePrevious} from 'react-use';
 
-import {FormRow, Select, SelectItem} from '@client/ui';
+import {FormGroup, FormRow, Select, SelectItem} from '@client/ui';
 
 import {SUPPORTED_CLIENTS} from '@shared/schema/constants/ClientConnectionSettings';
 
+import {ModalFormSubSectionHeader} from '@client/components/modals/ModalFormSectionHeader';
+
 import type {
   ClientConnectionSettings,
-  DelugeConnectionSettings, RTorrentConnectionSettings,
+  DelugeConnectionSettings,
+  QBittorrentConnectionSettings,
+  RTorrentConnectionSettings,
   TransmissionConnectionSettings,
 } from '@shared/schema/ClientConnectionSettings';
 
@@ -27,12 +31,11 @@ interface ClientConnectionSettingsFormProps {
 
 const ClientConnectionSettingsForm: FC<ClientConnectionSettingsFormProps> = ({
   onSettingsChange,
-  initialSettings=null
+  initialSettings = null,
 }: ClientConnectionSettingsFormProps) => {
   const {i18n} = useLingui();
-  const [selectedClient, setSelectedClient] = useState<ClientConnectionSettings['client']>( DEFAULT_SELECTION);
-
-  const prevSelectedClient = usePrevious(selectedClient);
+  const [selectedClient, setSelectedClient] = useState<ClientConnectionSettings['client']>(DEFAULT_SELECTION);
+	const prevSelectedClient = usePrevious(selectedClient);
 
   useEffect(() => {
     if (initialSettings) {
@@ -44,19 +47,40 @@ const ClientConnectionSettingsForm: FC<ClientConnectionSettingsFormProps> = ({
     onSettingsChange(null);
   }
 
-  let settingsForm: ReactNode = null;
+  let settingsForm: ReactNode | null = null;
+
   switch (selectedClient) {
     case 'Deluge':
-      settingsForm = <DelugeConnectionSettingsForm onSettingsChange={onSettingsChange} initialSettings={initialSettings as DelugeConnectionSettings} />;
+      settingsForm = (
+        <DelugeConnectionSettingsForm
+          onSettingsChange={onSettingsChange}
+          initialSettings={initialSettings as DelugeConnectionSettings}
+        />
+      );
       break;
     case 'qBittorrent':
-      settingsForm = <QBittorrentConnectionSettingsForm onSettingsChange={onSettingsChange} />;
+      settingsForm = (
+        <QBittorrentConnectionSettingsForm
+          onSettingsChange={onSettingsChange}
+          initialSettings={initialSettings as QBittorrentConnectionSettings}
+        />
+      );
       break;
     case 'rTorrent':
-      settingsForm = <RTorrentConnectionSettingsForm onSettingsChange={onSettingsChange} initialSettings={initialSettings as RTorrentConnectionSettings}/>;
+      settingsForm = (
+        <RTorrentConnectionSettingsForm
+          onSettingsChange={onSettingsChange}
+          initialSettings={initialSettings as RTorrentConnectionSettings}
+        />
+      );
       break;
     case 'Transmission':
-      settingsForm = <TransmissionConnectionSettingsForm onSettingsChange={onSettingsChange} initialSettings={initialSettings as TransmissionConnectionSettings} />;
+      settingsForm = (
+        <TransmissionConnectionSettingsForm
+          onSettingsChange={onSettingsChange}
+          initialSettings={initialSettings as TransmissionConnectionSettings}
+        />
+      );
       break;
     default:
       break;
@@ -65,20 +89,27 @@ const ClientConnectionSettingsForm: FC<ClientConnectionSettingsFormProps> = ({
   return (
     <div>
       <FormRow>
-        <Select
-          id="client"
-          label={i18n._('connection.settings.client.select')}
-          onSelect={(newSelectedClient) => {
-            setSelectedClient(newSelectedClient as ClientConnectionSettings['client']);
-          }}
-          defaultID={DEFAULT_SELECTION}
-          selectID={initialSettings?.client ?? DEFAULT_SELECTION}>
-          {SUPPORTED_CLIENTS.map((client) => (
-            <SelectItem key={client} id={client}>
-              <Trans id={`connection.settings.${client.toLowerCase()}`} />
-            </SelectItem>
-          ))}
-        </Select>
+        <FormGroup>
+          <ModalFormSubSectionHeader>
+            <Trans id="connection.settings.client" />
+          </ModalFormSubSectionHeader>
+          <FormRow>
+            <Select
+              id="client"
+              label={i18n._('connection.settings.client.select')}
+              onSelect={(newSelectedClient) => {
+                setSelectedClient(newSelectedClient as ClientConnectionSettings['client']);
+              }}
+              defaultID={DEFAULT_SELECTION}
+              selectID={initialSettings?.client ?? DEFAULT_SELECTION}>
+              {SUPPORTED_CLIENTS.map((client) => (
+                <SelectItem key={client} id={client}>
+                  <Trans id={`connection.settings.${client.toLowerCase()}`} />
+                </SelectItem>
+              ))}
+            </Select>
+          </FormRow>
+        </FormGroup>
       </FormRow>
       {settingsForm}
     </div>

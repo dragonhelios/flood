@@ -1,10 +1,22 @@
-import {literal, number, string, strictObject, union} from 'zod';
+import {literal, number, string, strictObject, union, boolean} from 'zod';
 import type {infer as zodInfer} from 'zod';
 
-const delugeConnectionSettingsSchema = strictObject({
+const baseClientSettingsSchema = strictObject({
+  client: literal(''),
+  type: literal(''),
+  version: literal(1),
+  isRemote: boolean(),
+  isDefaultDownload: boolean(),
+  sftpHost: string(),
+  sftpPort: number(),
+  sftpUser: string(),
+  sftpPassword: string(),
+  localPath: string(),
+});
+
+const delugeConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('Deluge'),
   type: literal('rpc'),
-  version: literal(1),
   host: string(),
   port: number(),
   username: string(),
@@ -13,10 +25,9 @@ const delugeConnectionSettingsSchema = strictObject({
 
 export type DelugeConnectionSettings = zodInfer<typeof delugeConnectionSettingsSchema>;
 
-const qBittorrentConnectionSettingsSchema = strictObject({
+const qBittorrentConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('qBittorrent'),
   type: literal('web'),
-  version: literal(1),
   url: string().url(),
   username: string(),
   password: string(),
@@ -24,29 +35,26 @@ const qBittorrentConnectionSettingsSchema = strictObject({
 
 export type QBittorrentConnectionSettings = zodInfer<typeof qBittorrentConnectionSettingsSchema>;
 
-const rTorrentTCPConnectionSettingsSchema = strictObject({
+const rTorrentTCPConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('rTorrent'),
   type: literal('tcp'),
-  version: literal(1),
   host: string(),
   port: number(),
 });
 
 export type RTorrentTCPConnectionSettings = zodInfer<typeof rTorrentTCPConnectionSettingsSchema>;
 
-const rTorrentSocketConnectionSettingsSchema = strictObject({
+const rTorrentSocketConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('rTorrent'),
   type: literal('socket'),
-  version: literal(1),
   socket: string(),
 });
 
 export type RTorrentSocketConnectionSettings = zodInfer<typeof rTorrentSocketConnectionSettingsSchema>;
 
-const rTorrentRPCConnectionSettingsSchema = strictObject({
+const rTorrentRPCConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('rTorrent'),
   type: literal('rpc'),
-  version: literal(1),
   url: string().url(),
   username: string(),
   password: string(),
@@ -62,10 +70,9 @@ const rTorrentConnectionSettingsSchema = union([
 
 export type RTorrentConnectionSettings = zodInfer<typeof rTorrentConnectionSettingsSchema>;
 
-const transmissionConnectionSettingsSchema = strictObject({
+const transmissionConnectionSettingsSchema = baseClientSettingsSchema.extend({
   client: literal('Transmission'),
   type: literal('rpc'),
-  version: literal(1),
   url: string().url(),
   username: string(),
   password: string(),
@@ -81,3 +88,19 @@ export const clientConnectionSettingsSchema = union([
 ]);
 
 export type ClientConnectionSettings = zodInfer<typeof clientConnectionSettingsSchema>;
+
+export type ClientConnectionFields =
+  | 'host'
+  | 'port'
+  | 'username'
+  | 'password'
+  | 'isRemote'
+  | 'url'
+  | 'socket'
+  | 'isDefaultDownload'
+  | 'sftpHost'
+  | 'sftpPort'
+  | 'sftpUser'
+  | 'sftpPassword'
+  | 'localPath';
+export type ClientConnectionFieldTypes = string | number | boolean;

@@ -142,7 +142,7 @@ class Users {
   async updateUser(username: string, userRecordPatch: Partial<Credentials>): Promise<string> {
     const patch: Omit<Partial<UserInDatabase>, '_id'> = userRecordPatch;
 
-    if (patch.password != null) {
+    if (patch.password != null && patch.password !== (await this.lookupUser(username)).password) {
       patch.password = await hashPassword(patch.password);
     }
 
