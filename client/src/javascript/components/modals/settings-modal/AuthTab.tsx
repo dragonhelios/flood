@@ -225,7 +225,11 @@ const AuthTab: FC = observer(() => {
 
                 const updateIcon = (
                   <button
-                    className="interactive-list__icon interactive-list__icon--action interactive-list__icon--action--danger"
+                    className={classnames('interactive-list__icon--hard', {
+                      'interactive-list__icon--action': !isUpdating,
+                      'interactive-list__icon--action--danger': !isUpdating,
+                      'interactive-list__icon--action--disabled': isUpdating,
+                    })}
                     type="button"
                     onClick={() => updateUser(user)}
                     disabled={isUpdating}
@@ -237,7 +241,11 @@ const AuthTab: FC = observer(() => {
                 if (!isCurrentUser) {
                   removeIcon = (
                     <button
-                      className="interactive-list__icon interactive-list__icon--action interactive-list__icon--action--warning"
+                      className={classnames('interactive-list__icon--hard', {
+                        'interactive-list__icon--action': !isUpdating,
+                        'interactive-list__icon--action--warning': !isUpdating,
+                        'interactive-list__icon--action--disabled': isUpdating,
+                      })}
                       type="button"
                       disabled={isUpdating}
                       onClick={() => AuthActions.deleteUser(user.username).then(AuthActions.fetchUsers)}>
@@ -254,6 +262,7 @@ const AuthTab: FC = observer(() => {
 
                 const classes = classnames('interactive-list__item', {
                   'interactive-list__item--disabled': isCurrentUser,
+                  'interactive-list__item--select': user.username === updateUserName,
                 });
 
                 return (
@@ -261,9 +270,9 @@ const AuthTab: FC = observer(() => {
                     <span className="interactive-list__label">
                       <div className="interactive-list__label__text">{user.username}</div>
                       {badge}
+                      {updateIcon}
+                      {removeIcon}
                     </span>
-                    {updateIcon}
-                    {removeIcon}
                   </li>
                 );
               })}
