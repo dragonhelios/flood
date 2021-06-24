@@ -1,5 +1,4 @@
 import express, {Response} from 'express';
-import fs from 'fs';
 import passport from 'passport';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
@@ -11,7 +10,7 @@ import type {HistorySnapshot} from '@shared/constants/historySnapshotTypes';
 import type {NotificationFetchOptions, NotificationState} from '@shared/types/Notification';
 import type {SetFloodSettingsOptions} from '@shared/types/api/index';
 
-import {accessDeniedError, isAllowedPath, readdir, sanitizePath, statsSync} from '../../util/fileUtil';
+import {accessDeniedError, isAllowedPath, readdirUtil, sanitizePath, statUtil} from '../../util/fileUtil';
 import appendUserServices from '../../middleware/appendUserServices';
 import authRoutes from './auth';
 import clientRoutes from './client';
@@ -121,23 +120,20 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
 
     Users.lookupUser(user).then(async (user) => {
       try {
-          const dirents = await readdir(resolvedPath, remote ? user.client : undefined);
+          const dirents = await readdirUtil(resolvedPath, remote ? user.client : undefined);
           await Promise.all(
             dirents.map(async (dirent) => {
-            if (dirent.isDirectory) {
-              directories.push(dirent.name);
-            } else if (dirent.isFile) {
-              files.push(dirent.name);
-            } else if (dirent.isSymbolicLink) {
-                const stats = statsSync(path.join(resolvedPath, dirent.name), remote ? user.client : undefined).catch(() => undefined);
-                if (!stats) {
-                  // do nothing.
-                } else if (stats.isDirectory) {
-                    directories.push(dirent.name);
-                  } else if (stats.isFile) {
-                    files.push(dirent.name);
-                  }
-                }
+              if (dirent.isDirectory || dirent.isFile) {
+                return dirent.isDirectory ? directories.push(dirent.name) : files.push(dirent.name);
+						  }
+
+						  if (dirent.isSymbolicLink) {
+						    const stats = await statUtil(path.join(resolvedPath, dirent.name), remote ? user.client : undefined).catch(() => undefined);
+
+						    if (stats.isDirectory || stats.isFile) {
+                  stats.isDirectory ? directories.push(entry.name) : files.push(entry.name);
+						    }
+						  }
             })
           )
       } catch (e) {
