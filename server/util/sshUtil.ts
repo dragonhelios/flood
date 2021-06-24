@@ -1,92 +1,111 @@
-import sftpClient from 'ssh2-sftp-client';
+import sftpClient, {ConnectOptions, FileInfo, FileStats} from 'ssh2-sftp-client';
 import path from 'path';
-import {ensurePathExists} from '../util/fileUtil';
+import {existsSync, mkdirSync} from 'fs';
 import {remoteDownloadSettings} from '@shared/constants/remoteDownloadOptions';
-import {ClientConnectionSettings} from '@shared/schema/ClientConnectionSettings';
+
+export interface sftpConnectionSettings {
+  sftpHost: string;
+  sftpPort: number;
+  sftpUser: string;
+  sftpPassword: string;
+}
 
 export class sshUtil {
-  static sftpConnect = async (connectionSettings: ClientConnectionSettings) => {
+  static sftpConnect = async ({...connectionSettings}: sftpConnectionSettings) => {
     const sftp = new sftpClient();
-    const connectoptions: sftpClient.ConnectOptions = {
+
+    const connectoptions: ConnectOptions = {
       host: connectionSettings.sftpHost,
       port: connectionSettings.sftpPort,
       username: connectionSettings.sftpUser,
       password: connectionSettings.sftpPassword,
     };
+
     try {
       await sftp.connect(connectoptions);
       return sftp;
     } catch (error) {
-      throw new Error(error);
+      sftp.end();
+      throw error;
     }
   };
 
   static downloadFile = async (
-    connectionSettings: ClientConnectionSettings,
+    {...connectionSettings}: sftpConnectionSettings,
     file: string,
     srcDirectory: string,
     destDirectory: string,
-  ): Promise<boolean> => {
+  ): Promise<void> => {
     const src = path.posix.join(srcDirectory, file);
     const dest = path.join(destDirectory, path.normalize(file));
+    const destFolderPath = path.dirname(dest);
 
-    ensurePathExists(dest);
-
-    let sftp: sftpClient | null = null;
+    if (existsSync(destFolderPath)) {
+      mkdirSync(destFolderPath, {recursive: true});
+    }
 
     try {
-      sftp = await sshUtil.sftpConnect(connectionSettings);
-      await sftp.fastGet(src, dest, remoteDownloadSettings);
-      await sftp.end();
-      return true;
+      const sftp = await sshUtil.sftpConnect(connectionSettings);
+      try {
+        await sftp.fastGet(src, dest, remoteDownloadSettings);
+        sftp.end();
+      } catch (err) {
+        sftp.end();
+        throw err;
+      }
     } catch (err) {
-      await sftp?.end();
-      return false;
+      throw err;
     }
   };
 
-  static downloadMultiple = async (
-    connectionSettings: ClientConnectionSettings,
+  static downloadMultiple = (
+    connectionSettings: sftpConnectionSettings,
     files: string[],
     srcDirectory: string,
     destDirectory: string,
-  ): Promise<boolean> => {
-    let result = true;
-    const downloaded: string[] = [];
-
+    cb?: () => unknown,
+  ) => {
     for (const file of files) {
+      sshUtil.downloadFile(connectionSettings, file, srcDirectory, destDirectory).then(
+        () => {
+          if (cb) cb;
+        },
+        (err) => {
+          throw err;
+        },
+      );
+    }
+  };
+
+  static readdirSSH = async ({...connectionSettings}: sftpConnectionSettings, path: string): Promise<FileInfo[]> => {
+    try {
+      const sftp = await sshUtil.sftpConnect(connectionSettings);
       try {
-        await sshUtil.downloadFile(connectionSettings, file, srcDirectory, destDirectory);
-        downloaded.push(file);
+        const dirEnt: FileInfo[] = await sftp.list(path);
+        await sftp.end();
+        return dirEnt;
       } catch (err) {
-        console.log(err);
+        await sftp.end();
+        throw err;
       }
+    } catch (err) {
+      throw err;
     }
-
-    if (downloaded.length !== files.length) {
-      result = false;
-    }
-
-    return result;
   };
 
-  static readdirSSH = async (connectionSettings: ClientConnectionSettings, path: string) => {
-    let sftp: sftpClient | null = null;
-		try {
-    sftp = await sshUtil.sftpConnect(connectionSettings);
-    const dirContent = await sftp.list(path);
-    sftp.end();
-    return dirContent;
-		} catch (error) {
-			throw new Error(error)
-		}
-  };
-
-  static statSSH = async (connectionSettings: ClientConnectionSettings, path: string) => {
-    let sftp: sftpClient | null = null;
-    sftp = await sshUtil.sftpConnect(connectionSettings);
-    const stat = await sftp.stat(path);
-    sftp.end();
-    return stat;
+  static statSSH = async ({...connectionSettings}: sftpConnectionSettings, path: string): Promise<FileStats> => {
+    try {
+      const sftp = await sshUtil.sftpConnect(connectionSettings);
+      try {
+        const stats = await sftp.stat(path);
+        await sftp.end();
+        return stats;
+      } catch (err) {
+        await sftp.end();
+        throw err;
+      }
+    } catch (err) {
+      throw err;
+    }
   };
 }
