@@ -10,7 +10,7 @@ import type {HistorySnapshot} from '@shared/constants/historySnapshotTypes';
 import type {NotificationFetchOptions, NotificationState} from '@shared/types/Notification';
 import type {SetFloodSettingsOptions} from '@shared/types/api/index';
 
-import {accessDeniedError, isAllowedPath, readdir, sanitizePath, statsSync} from '../../util/fileUtil';
+import {accessDeniedError, isAllowedPath, readdirUtil, sanitizePath, statUtil} from '../../util/fileUtil';
 import appendUserServices from '../../middleware/appendUserServices';
 import authRoutes from './auth';
 import clientRoutes from './client';
@@ -120,21 +120,18 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
 
     Users.lookupUser(user).then(async (user) => {
       try {
-        await readdir(resolvedPath, remote ? user.client : undefined).then((dirents) =>
-          dirents.forEach((dirent) => {
-            if (dirent.isDirectory) {
-              directories.push(dirent.name);
-            } else if (dirent.isFile) {
-              files.push(dirent.name);
-            } else if (dirent.isSymbolicLink) {
+        await readdirUtil(resolvedPath, remote ? user.client : undefined).then((dirEntries) =>
+          dirEntries.forEach(async (entry) => {
+            if (entry.isDirectory || entry.isFile) {
+              return entry.isDirectory ? directories.push(entry.name) : files.push(entry.name);
+						}
+						
+						if (entry.isSymbolicLink) {
               try {
-                const stats = statsSync(path.join(resolvedPath, dirent.name), remote ? user.client : undefined);
-                if (stats) {
-                  if (stats.isDirectory) {
-                    directories.push(dirent.name);
-                  } else if (stats.isFile) {
-                    files.push(dirent.name);
-                  }
+                const stat = await statUtil(path.join(resolvedPath, entry.name), remote ? user.client : undefined);
+
+                if (stat.isDirectory || stat.isFile) {
+                  stat.isDirectory ? directories.push(entry.name) : files.push(entry.name);
                 }
               } catch {
                 // do nothing.
@@ -162,7 +159,7 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
     });
   },
 );
- 
+
 /**
  * GET /api/history
  * @summary Gets transfer history in the given interval

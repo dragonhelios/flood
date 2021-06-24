@@ -90,78 +90,75 @@ export const moveFiles = (source: string, destination: string) => {
   }
 };
 
-export const readdir = async (
+export const readdirUtil = async (
   resolvedPath: string,
   connectionSettings?: ClientConnectionSettings,
 ): Promise<{name: string; isDirectory: boolean; isFile: boolean; isSymbolicLink: boolean}[]> => {
-  if (connectionSettings?.isRemote) {
-    return await sshUtil.readdirSSH(connectionSettings, resolvedPath).then(
-      (data) =>
-        data.map((item) => {
-          return {
-            name: item.name,
-            isDirectory: item.type === 'd',
-            isFile: item.type === '-',
-            isSymbolicLink: item.type === 'l',
-          };
-        }),
-      (err) => {
-        throw err;
-      },
-    );
-  }
+  try {
+    if (connectionSettings?.isRemote) {
+      return (await sshUtil.readdirSSH(connectionSettings, resolvedPath)).map((item) => {
+        return {
+          name: item.name,
+          isDirectory: item.type === 'd',
+          isFile: item.type === '-',
+          isSymbolicLink: item.type === 'l',
+        };
+      });
+    }
 
-  return fs.readdirSync(resolvedPath, {withFileTypes: true}).map((item) => {
-    return {
-      name: item.name,
-      isDirectory: item.isDirectory(),
-      isFile: item.isFile(),
-      isSymbolicLink: item.isSymbolicLink(),
-    };
-  });
+    return fs.readdirSync(resolvedPath, {withFileTypes: true}).map((item) => {
+      return {
+        name: item.name,
+        isDirectory: item.isDirectory(),
+        isFile: item.isFile(),
+        isSymbolicLink: item.isSymbolicLink(),
+      };
+    });
+  } catch (err) {
+    throw err;
+  }
 };
 
-export const statsSync = async (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
-  if (connectionSettings?.isRemote) {
-    return await sshUtil.statSSH(connectionSettings, resolvedPath).then(
-      (data) => {
-        return {
-          mode: data.mode,
-          uid: data.uid,
-          gid: data.gid,
-          size: data.size,
-          atimeMs: data.accessTime,
-          mtimeMs: data.modifyTime,
-          isDirectory: data.isDirectory,
-          isFile: data.isFile,
-          isBlockDevice: data.isBlockDevice,
-          isCharacterDevice: data.isCharacterDevice,
-          isSymbolicLink: data.isSymbolicLink,
-          isFIFO: data.isFIFO,
-          isSocket: data.isSocket,
-        };
-      },
-      (err) => {
-        throw err;
-      },
-    );
+export const statUtil = async (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
+  try {
+    if (connectionSettings?.isRemote) {
+      const stat = await sshUtil.statSSH(connectionSettings, resolvedPath);
+
+      return {
+        mode: stat.mode,
+        uid: stat.uid,
+        gid: stat.gid,
+        size: stat.size,
+        atimeMs: stat.accessTime,
+        mtimeMs: stat.modifyTime,
+        isDirectory: stat.isDirectory,
+        isFile: stat.isFile,
+        isBlockDevice: stat.isBlockDevice,
+        isCharacterDevice: stat.isCharacterDevice,
+        isSymbolicLink: stat.isSymbolicLink,
+        isFIFO: stat.isFIFO,
+        isSocket: stat.isSocket,
+      };
+    }
+
+    const fsStat = fs.statSync(resolvedPath);
+
+    return {
+      mode: fsStat.mode,
+      uid: fsStat.uid,
+      gid: fsStat.gid,
+      size: fsStat.size,
+      atimeMs: fsStat.atimeMs,
+      mtimeMs: fsStat.mtimeMs,
+      isDirectory: fsStat.isDirectory(),
+      isFile: fsStat.isFile(),
+      isBlockDevice: fsStat.isBlockDevice(),
+      isCharacterDevice: fsStat.isCharacterDevice(),
+      isSymbolicLink: fsStat.isSymbolicLink(),
+      isFIFO: fsStat.isFIFO(),
+      isSocket: fsStat.isSocket(),
+    };
+  } catch (err) {
+    throw err;
   }
-
-  const fsStat = fs.statSync(resolvedPath);
-
-  return {
-    mode: fsStat.mode,
-    uid: fsStat.uid,
-    gid: fsStat.gid,
-    size: fsStat.size,
-    atimeMs: fsStat.atimeMs,
-    mtimeMs: fsStat.mtimeMs,
-    isDirectory: fsStat.isDirectory(),
-    isFile: fsStat.isFile(),
-    isBlockDevice: fsStat.isBlockDevice(),
-    isCharacterDevice: fsStat.isCharacterDevice(),
-    isSymbolicLink: fsStat.isSymbolicLink(),
-    isFIFO: fsStat.isFIFO(),
-    isSocket: fsStat.isSocket(),
-  };
 };
