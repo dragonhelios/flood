@@ -100,6 +100,7 @@ const AddTorrentsByURL: FC = () => {
         showBasePathToggle
         showCompletedToggle
         showSequentialToggle
+        remote
       />
       <AddTorrentsActions
         onAddTorrentsClick={() => {

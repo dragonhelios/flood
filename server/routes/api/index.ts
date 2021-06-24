@@ -1,5 +1,4 @@
 import express, {Response} from 'express';
-import fs from 'fs';
 import passport from 'passport';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
@@ -11,7 +10,7 @@ import type {HistorySnapshot} from '@shared/constants/historySnapshotTypes';
 import type {NotificationFetchOptions, NotificationState} from '@shared/types/Notification';
 import type {SetFloodSettingsOptions} from '@shared/types/api/index';
 
-import {accessDeniedError, isAllowedPath, sanitizePath} from '../../util/fileUtil';
+import {accessDeniedError, isAllowedPath, readdir, sanitizePath, statsSync} from '../../util/fileUtil';
 import appendUserServices from '../../middleware/appendUserServices';
 import authRoutes from './auth';
 import clientRoutes from './client';
@@ -20,6 +19,7 @@ import eventStream from '../../middleware/eventStream';
 import feedMonitorRoutes from './feed-monitor';
 import {getAuthToken, verifyToken} from '../../util/authUtil';
 import torrentsRoutes from './torrents';
+import Users from 'server/models/Users';
 
 const router = express.Router();
 
@@ -100,60 +100,69 @@ router.get('/activity-stream', eventStream, clientActivityStream);
  * @return {Error} 422 - invalid argument - application/json
  * @return {Error} 500 - other errors - application/json
  */
-router.get<unknown, unknown, unknown, {path: string}>('/directory-list', (req, res): Response<unknown> => {
-  const {path: inputPath} = req.query;
+router.get<unknown, unknown, unknown, {path: string; user: string; remote: boolean}>(
+  '/directory-list',
+  (req, res): Response<unknown> | undefined => {
+    const {path: inputPath, user, remote} = req.query;
 
-  if (typeof inputPath !== 'string' || !inputPath) {
-    return res.status(422).json({code: 'EINVAL', message: 'Invalid argument'});
-  }
+    if (typeof inputPath !== 'string' || !inputPath) {
+      return res.status(422).json({code: 'EINVAL', message: 'Invalid argument'});
+    }
 
-  const resolvedPath = sanitizePath(inputPath);
-  if (!isAllowedPath(resolvedPath)) {
-    const {code, message} = accessDeniedError();
-    return res.status(403).json({code, message});
-  }
+    const resolvedPath = sanitizePath(inputPath);
+    if (!isAllowedPath(resolvedPath)) {
+      const {code, message} = accessDeniedError();
+      return res.status(403).json({code, message});
+    }
 
-  const directories: Array<string> = [];
-  const files: Array<string> = [];
+    const directories: Array<string> = [];
+    const files: Array<string> = [];
 
-  try {
-    fs.readdirSync(resolvedPath, {withFileTypes: true}).forEach((dirent) => {
-      if (dirent.isDirectory()) {
-        directories.push(dirent.name);
-      } else if (dirent.isFile()) {
-        files.push(dirent.name);
-      } else if (dirent.isSymbolicLink()) {
-        try {
-          const stats = fs.statSync(path.join(resolvedPath, dirent.name));
-          if (stats.isDirectory()) {
-            directories.push(dirent.name);
-          } else if (stats.isFile()) {
-            files.push(dirent.name);
-          }
-        } catch {
-          // do nothing.
+    Users.lookupUser(user).then(async (user) => {
+      try {
+        await readdir(resolvedPath, remote ? user.client : undefined).then((dirents) =>
+          dirents.forEach((dirent) => {
+            if (dirent.isDirectory) {
+              directories.push(dirent.name);
+            } else if (dirent.isFile) {
+              files.push(dirent.name);
+            } else if (dirent.isSymbolicLink) {
+              try {
+                const stats = statsSync(path.join(resolvedPath, dirent.name), remote ? user.client : undefined);
+                if (stats) {
+                  if (stats.isDirectory) {
+                    directories.push(dirent.name);
+                  } else if (stats.isFile) {
+                    files.push(dirent.name);
+                  }
+                }
+              } catch {
+                // do nothing.
+              }
+            }
+          }),
+        );
+
+        return res.status(200).json({
+          path: resolvedPath,
+          separator: path.sep,
+          directories,
+          files,
+        });
+      } catch (e) {
+        const {code, message} = e as NodeJS.ErrnoException;
+        if (code === 'ENOENT') {
+          return res.status(404).json({code, message});
+        } else if (code === 'EACCES') {
+          return res.status(403).json({code, message});
+        } else {
+          return res.status(500).json({code, message});
         }
       }
     });
-  } catch (e) {
-    const {code, message} = e as NodeJS.ErrnoException;
-    if (code === 'ENOENT') {
-      return res.status(404).json({code, message});
-    } else if (code === 'EACCES') {
-      return res.status(403).json({code, message});
-    } else {
-      return res.status(500).json({code, message});
-    }
-  }
-
-  return res.status(200).json({
-    path: resolvedPath,
-    separator: path.sep,
-    directories,
-    files,
-  });
-});
-
+  },
+);
+ 
 /**
  * GET /api/history
  * @summary Gets transfer history in the given interval

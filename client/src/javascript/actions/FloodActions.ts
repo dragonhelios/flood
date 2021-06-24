@@ -99,10 +99,10 @@ const FloodActions = {
     activityStreamEventSource = null;
   },
 
-  fetchDirectoryList: (path: string) =>
+  fetchDirectoryList: (path: string, remote: boolean, user: string) =>
     axios
       .get(`${baseURI}api/directory-list`, {
-        params: {path},
+        params: {path, remote, user},
       })
       .then((json) => json.data),
 
