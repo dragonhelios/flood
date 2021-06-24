@@ -8,6 +8,7 @@ import {useKey} from 'react-use';
 import {Arrow, File, FolderClosedOutlined, FolderClosedSolid, FolderOpenSolid} from '@client/ui/icons';
 import FloodActions from '@client/actions/FloodActions';
 import termMatch from '@client/util/termMatch';
+import AuthStore from '@client/stores/AuthStore';
 
 const foregroundColor = '#5E728C';
 
@@ -67,19 +68,21 @@ const MESSAGES = {
 };
 
 interface FilesystemBrowserProps {
-  selectable?: 'files' | 'directories';
+  selectable?: 'files' | 'directories' | 'all';
   directory: string;
   onItemSelection?: (newDestination: string, shouldKeepOpen?: boolean) => void;
   onYieldFocus?: () => void;
+  remote: boolean;
 }
 
 const FilesystemBrowser: FC<FilesystemBrowserProps> = memo(
-  ({directory, selectable, onItemSelection, onYieldFocus}: FilesystemBrowserProps) => {
+  ({directory, selectable, onItemSelection, onYieldFocus, remote}: FilesystemBrowserProps) => {
     const [cursor, setCursor] = useState<number | null>(null);
     const [errorResponse, setErrorResponse] = useState<{data?: NodeJS.ErrnoException} | null>(null);
     const [separator, setSeparator] = useState<string>(directory.includes('/') ? '/' : '\\');
     const [directories, setDirectories] = useState<string[] | null>(null);
     const [files, setFiles] = useState<string[] | null>(null);
+    const [fetching, setFetching] = useState<boolean>(false);
 
     const listRef = useRef<HTMLUListElement>(null);
 
@@ -95,18 +98,21 @@ const FilesystemBrowser: FC<FilesystemBrowserProps> = memo(
       setCursor(null);
       setDirectories(null);
       setFiles(null);
+      setFetching(true);
 
-      FloodActions.fetchDirectoryList(currentDirectory)
+      FloodActions.fetchDirectoryList(currentDirectory, remote, AuthStore.currentUser.username ?? '')
         .then(({files: fetchedFiles, directories: fetchedDirectories, separator: fetchedSeparator}) => {
           setDirectories(fetchedDirectories);
           setFiles(fetchedFiles);
           setSeparator(fetchedSeparator);
           setErrorResponse(null);
+          setFetching(false);
         })
         .catch(({response}) => {
           setErrorResponse(response);
+          setFetching(false);
         });
-    }, [currentDirectory]);
+    }, [currentDirectory, remote]);
 
     useEffect(() => {
       if (listRef.current != null && cursor != null) {
@@ -146,7 +152,11 @@ const FilesystemBrowser: FC<FilesystemBrowserProps> = memo(
     let errorMessage: string | null = null;
     let listItems: ReactNodeArray = [];
 
-    if ((directories == null && selectable === 'directories') || (files == null && selectable === 'files')) {
+    if (
+      (directories == null && selectable === 'directories') ||
+      (files == null && selectable === 'files') ||
+      fetching
+    ) {
       errorMessage = 'filesystem.fetching';
     }
 
@@ -259,7 +269,7 @@ const FilesystemBrowser: FC<FilesystemBrowserProps> = memo(
             })) ||
         [];
 
-      if (directoryList.length === 0 && fileList.length === 0 && !errorMessage) {
+      if (directoryList.length === 0 && fileList.length === 0 && !errorMessage && !fetching) {
         errorMessage = 'filesystem.empty.directory';
       }
 

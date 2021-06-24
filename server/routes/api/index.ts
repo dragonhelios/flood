@@ -11,7 +11,7 @@ import type {HistorySnapshot} from '@shared/constants/historySnapshotTypes';
 import type {NotificationFetchOptions, NotificationState} from '@shared/types/Notification';
 import type {SetFloodSettingsOptions} from '@shared/types/api/index';
 
-import {accessDeniedError, isAllowedPath, sanitizePath} from '../../util/fileUtil';
+import {accessDeniedError, isAllowedPath, readdir, sanitizePath, statsSync} from '../../util/fileUtil';
 import appendUserServices from '../../middleware/appendUserServices';
 import authRoutes from './auth';
 import clientRoutes from './client';
@@ -20,6 +20,7 @@ import eventStream from '../../middleware/eventStream';
 import feedMonitorRoutes from './feed-monitor';
 import {getAuthToken, verifyToken} from '../../util/authUtil';
 import torrentsRoutes from './torrents';
+import Users from 'server/models/Users';
 
 const router = express.Router();
 
@@ -100,7 +101,7 @@ router.get('/activity-stream', eventStream, clientActivityStream);
  * @return {Error} 422 - invalid argument - application/json
  * @return {Error} 500 - other errors - application/json
  */
-router.get<unknown, unknown, unknown, {path: string}>(
+router.get<unknown, unknown, unknown, {path: string; user: string; remote: boolean}>(
   '/directory-list',
   async (req, res): Promise<Response<unknown>> => {
     const {path: inputPath} = req.query;
@@ -118,42 +119,44 @@ router.get<unknown, unknown, unknown, {path: string}>(
     const directories: Array<string> = [];
     const files: Array<string> = [];
 
-    try {
-      const dirents = await fs.promises.readdir(resolvedPath, {withFileTypes: true});
-      await Promise.all(
-        dirents.map(async (dirent) => {
-          if (dirent.isDirectory()) {
-            directories.push(dirent.name);
-          } else if (dirent.isFile()) {
-            files.push(dirent.name);
-          } else if (dirent.isSymbolicLink()) {
-            const stats = await fs.promises.stat(path.join(resolvedPath, dirent.name)).catch(() => undefined);
-            if (!stats) {
-              // do nothing.
-            } else if (stats.isDirectory()) {
+    Users.lookupUser(user).then(async (user) => {
+      try {
+          const dirents = await readdir(resolvedPath, remote ? user.client : undefined);
+          await Promise.all(
+            dirents.map(async (dirent) => {
+            if (dirent.isDirectory) {
               directories.push(dirent.name);
-            } else if (stats.isFile()) {
+            } else if (dirent.isFile) {
               files.push(dirent.name);
-            }
-          }
-        }),
-      );
-    } catch (e) {
-      const {code, message} = e as NodeJS.ErrnoException;
-      if (code === 'ENOENT') {
-        return res.status(404).json({code, message});
-      } else if (code === 'EACCES') {
-        return res.status(403).json({code, message});
-      } else {
-        return res.status(500).json({code, message});
+            } else if (dirent.isSymbolicLink) {
+                const stats = statsSync(path.join(resolvedPath, dirent.name), remote ? user.client : undefined).catch(() => undefined);
+                if (!stats) {
+                  // do nothing.
+                } else if (stats.isDirectory) {
+                    directories.push(dirent.name);
+                  } else if (stats.isFile) {
+                    files.push(dirent.name);
+                  }
+                }
+            })
+          )
+      } catch (e) {
+        const {code, message} = e as NodeJS.ErrnoException;
+        if (code === 'ENOENT') {
+          return res.status(404).json({code, message});
+        } else if (code === 'EACCES') {
+          return res.status(403).json({code, message});
+        } else {
+          return res.status(500).json({code, message});
+        }
       }
-    }
 
-    return res.status(200).json({
-      path: resolvedPath,
-      separator: path.sep,
-      directories,
-      files,
+      return res.status(200).json({
+        path: resolvedPath,
+        separator: path.sep,
+        directories,
+        files,
+      });
     });
   },
 );

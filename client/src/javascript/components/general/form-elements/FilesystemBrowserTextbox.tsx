@@ -12,12 +12,13 @@ import FilesystemBrowser from '../filesystem/FilesystemBrowser';
 interface FilesystemBrowserTextboxProps {
   id: string;
   label?: ReactNode;
-  selectable?: 'directories' | 'files';
+  selectable?: 'directories' | 'files' | 'all';
   suggested?: string;
   showBasePathToggle?: boolean;
   showCompletedToggle?: boolean;
   showSequentialToggle?: boolean;
   onChange?: (destination: string) => void;
+  remote?: boolean;
 }
 
 const FilesystemBrowserTextbox = forwardRef<HTMLInputElement, FilesystemBrowserTextboxProps>(
@@ -31,6 +32,7 @@ const FilesystemBrowserTextbox = forwardRef<HTMLInputElement, FilesystemBrowserT
       showCompletedToggle,
       showSequentialToggle,
       onChange,
+      remote,
     }: FilesystemBrowserTextboxProps,
     ref,
   ) => {
@@ -139,6 +141,7 @@ const FilesystemBrowserTextbox = forwardRef<HTMLInputElement, FilesystemBrowserT
                 <FilesystemBrowser
                   directory={destination}
                   selectable={selectable}
+                  remote={remote ?? false}
                   onItemSelection={(newDestination: string, shouldKeepOpen = true) => {
                     if (textboxRef.current != null) {
                       textboxRef.current.value = newDestination;
@@ -169,6 +172,7 @@ FilesystemBrowserTextbox.defaultProps = {
   showCompletedToggle: false,
   showSequentialToggle: false,
   onChange: undefined,
+  remote: false,
 };
 
 export default FilesystemBrowserTextbox;

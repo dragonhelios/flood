@@ -30,7 +30,12 @@ const AddTorrentsByCreation: FC = () => {
 
   return (
     <Form className="inverse" ref={formRef}>
-      <FilesystemBrowserTextbox id="sourcePath" label={i18n._('torrents.create.source.path.label')} />
+      <FilesystemBrowserTextbox
+        id="sourcePath"
+        label={i18n._('torrents.create.source.path.label')}
+        remote
+        selectable="all"
+      />
       <TextboxRepeater
         id="trackers"
         label={i18n._('torrents.create.trackers.label')}
