@@ -57,9 +57,7 @@ export const sanitizePath = (input?: string): string => {
 };
 
 export const folderPathExists = (fullPath: string): boolean => {
-  const folderPath = path.dirname(fullPath);
-
-  return fs.existsSync(folderPath);
+  return fs.existsSync(path.dirname(fullPath));
 };
 
 export const ensurePathExists = (fullPath: string): void => {
@@ -92,83 +90,66 @@ export const moveFiles = (source: string, destination: string) => {
   }
 };
 
-export const readdir = async (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
-  const dirContent: Array<{
-    name: string;
-    isDirectory: boolean;
-    isFile: boolean;
-    isSymbolicLink: boolean;
-  }> = [];
-
+export const readdir = async (
+  resolvedPath: string,
+  connectionSettings?: ClientConnectionSettings,
+): Promise<{name: string; isDirectory: boolean; isFile: boolean; isSymbolicLink: boolean}[]> => {
   if (connectionSettings?.isRemote) {
-    await sshUtil.readdirSSH(connectionSettings, resolvedPath).then((data) =>
-      data.forEach((item) => {
-        dirContent.push({
-          name: item.name,
-          isDirectory: item.type === 'd',
-          isFile: item.type === '-',
-          isSymbolicLink: item.type === 'l',
-        });
-      }),
+    return await sshUtil.readdirSSH(connectionSettings, resolvedPath).then(
+      (data) =>
+        data.map((item) => {
+          return {
+            name: item.name,
+            isDirectory: item.type === 'd',
+            isFile: item.type === '-',
+            isSymbolicLink: item.type === 'l',
+          };
+        }),
+      (err) => {
+        throw err;
+      },
     );
-
-    return dirContent;
   }
 
-  fs.readdirSync(resolvedPath, {withFileTypes: true}).map((item) =>
-    dirContent.push({
+  return fs.readdirSync(resolvedPath, {withFileTypes: true}).map((item) => {
+    return {
       name: item.name,
       isDirectory: item.isDirectory(),
       isFile: item.isFile(),
       isSymbolicLink: item.isSymbolicLink(),
-    }),
-  );
-
-  return dirContent;
+    };
+  });
 };
 
-export const statsSync = (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
-  let stat: {
-    mode: number;
-    uid: number; // user ID
-    gid: number; // group ID
-    size: number; // file size
-    atimeMs: number; // Last access time. milliseconds
-    mtimeMs: number; // last modify time. milliseconds
-    isDirectory: boolean; // true if object is a directory
-    isFile: boolean; // true if object is a file
-    isBlockDevice: boolean; // true if object is a block device
-    isCharacterDevice: boolean; // true if object is a character device
-    isSymbolicLink: boolean; // true if object is a symbolic link
-    isFIFO: boolean; // true if object is a FIFO
-    isSocket: boolean; // true if object is a socket
-  } | null = null;
-
+export const statsSync = async (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
   if (connectionSettings?.isRemote) {
-    sshUtil.statSSH(connectionSettings, resolvedPath).then((data) => {
-      stat = {
-        mode: data.mode,
-        uid: data.uid,
-        gid: data.gid,
-        size: data.size,
-        atimeMs: data.accessTime,
-        mtimeMs: data.modifyTime,
-        isDirectory: data.isDirectory,
-        isFile: data.isFile,
-        isBlockDevice: data.isBlockDevice,
-        isCharacterDevice: data.isCharacterDevice,
-        isSymbolicLink: data.isSymbolicLink,
-        isFIFO: data.isFIFO,
-        isSocket: data.isSocket,
-      };
-    });
-
-    return stat;
+    return await sshUtil.statSSH(connectionSettings, resolvedPath).then(
+      (data) => {
+        return {
+          mode: data.mode,
+          uid: data.uid,
+          gid: data.gid,
+          size: data.size,
+          atimeMs: data.accessTime,
+          mtimeMs: data.modifyTime,
+          isDirectory: data.isDirectory,
+          isFile: data.isFile,
+          isBlockDevice: data.isBlockDevice,
+          isCharacterDevice: data.isCharacterDevice,
+          isSymbolicLink: data.isSymbolicLink,
+          isFIFO: data.isFIFO,
+          isSocket: data.isSocket,
+        };
+      },
+      (err) => {
+        throw err;
+      },
+    );
   }
 
   const fsStat = fs.statSync(resolvedPath);
 
-  stat = {
+  return {
     mode: fsStat.mode,
     uid: fsStat.uid,
     gid: fsStat.gid,
@@ -183,6 +164,4 @@ export const statsSync = (resolvedPath: string, connectionSettings?: ClientConne
     isFIFO: fsStat.isFIFO(),
     isSocket: fsStat.isSocket(),
   };
-
-  return stat;
 };
