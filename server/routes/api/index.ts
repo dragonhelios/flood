@@ -20,6 +20,7 @@ import feedMonitorRoutes from './feed-monitor';
 import {getAuthToken, verifyToken} from '../../util/authUtil';
 import torrentsRoutes from './torrents';
 import Users from 'server/models/Users';
+import SFTPConnection from 'server/util/sftpUtil';
 
 const router = express.Router();
 
@@ -120,25 +121,37 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
 
     Users.lookupUser(user).then(async (user) => {
       try {
-        await readdirUtil(resolvedPath, remote ? user.client : undefined).then((dirEntries) =>
-          dirEntries.forEach(async (entry) => {
-            if (entry.isDirectory || entry.isFile) {
-              return entry.isDirectory ? directories.push(entry.name) : files.push(entry.name);
-						}
-						
-						if (entry.isSymbolicLink) {
-              try {
-                const stat = await statUtil(path.join(resolvedPath, entry.name), remote ? user.client : undefined);
+        const sftpClient: SFTPConnection | undefined = remote
+          ? await new SFTPConnection().connect({
+              host: user.client.sftpHost,
+              port: user.client.sftpPort,
+              username: user.client.sftpUser,
+              password: user.client.sftpPassword,
+            })
+          : undefined;
 
-                if (stat.isDirectory || stat.isFile) {
-                  stat.isDirectory ? directories.push(entry.name) : files.push(entry.name);
-                }
-              } catch {
-                // do nothing.
+        if (sftpClient)
+          await readdirUtil(resolvedPath, sftpClient).then((dirEntries) =>
+            dirEntries.forEach(async (entry) => {
+              if (entry.isDirectory || entry.isFile) {
+                return entry.isDirectory ? directories.push(entry.name) : files.push(entry.name);
               }
-            }
-          }),
-        );
+
+              if (entry.isSymbolicLink) {
+                try {
+                  const stat = await statUtil(path.join(resolvedPath, entry.name), sftpClient);
+
+                  if (stat.isDirectory || stat.isFile) {
+                    stat.isDirectory ? directories.push(entry.name) : files.push(entry.name);
+                  }
+                } catch {
+                  // do nothing.
+                }
+              }
+            }),
+          );
+
+        if (sftpClient?.hasConnection()) await sftpClient.end();
 
         return res.status(200).json({
           path: resolvedPath,

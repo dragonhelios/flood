@@ -1,10 +1,9 @@
-import {ClientConnectionSettings} from '@shared/schema/ClientConnectionSettings';
 import fs from 'fs-extra';
 import {homedir} from 'os';
 import path from 'path';
 
 import config from '../../config';
-import {sshUtil} from './sshUtil';
+import SFTPConnection from './sftpUtil';
 
 export const accessDeniedError = () => {
   const error = new Error('Permission denied') as NodeJS.ErrnoException;
@@ -92,11 +91,11 @@ export const moveFiles = (source: string, destination: string) => {
 
 export const readdirUtil = async (
   resolvedPath: string,
-  connectionSettings?: ClientConnectionSettings,
+  sftpClient?: SFTPConnection,
 ): Promise<{name: string; isDirectory: boolean; isFile: boolean; isSymbolicLink: boolean}[]> => {
   try {
-    if (connectionSettings?.isRemote) {
-      return (await sshUtil.readdirSSH(connectionSettings, resolvedPath)).map((item) => {
+    if (sftpClient) {
+      return (await sftpClient.readdirSFTP(resolvedPath)).map((item) => {
         return {
           name: item.name,
           isDirectory: item.type === 'd',
@@ -119,10 +118,10 @@ export const readdirUtil = async (
   }
 };
 
-export const statUtil = async (resolvedPath: string, connectionSettings?: ClientConnectionSettings) => {
+export const statUtil = async (resolvedPath: string, sftpClient?: SFTPConnection) => {
   try {
-    if (connectionSettings?.isRemote) {
-      const stat = await sshUtil.statSSH(connectionSettings, resolvedPath);
+    if (sftpClient) {
+      const stat = await sftpClient.statSFTP(resolvedPath);
 
       return {
         mode: stat.mode,
