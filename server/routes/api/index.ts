@@ -120,22 +120,33 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
 
     Users.lookupUser(user).then(async (user) => {
       try {
-          const dirents = await readdirUtil(resolvedPath, remote ? user.client : undefined);
-          await Promise.all(
-            dirents.map(async (dirent) => {
-              if (dirent.isDirectory || dirent.isFile) {
-                return dirent.isDirectory ? directories.push(dirent.name) : files.push(dirent.name);
-						  }
-
-						  if (dirent.isSymbolicLink) {
-						    const stats = await statUtil(path.join(resolvedPath, dirent.name), remote ? user.client : undefined).catch(() => undefined);
-
-						    if (stats.isDirectory || stats.isFile) {
-                  stats.isDirectory ? directories.push(entry.name) : files.push(entry.name);
-						    }
-						  }
+        const sftpClient: SFTPConnection | undefined = remote
+          ? await new SFTPConnection().connect({
+              host: user.client.sftpHost,
+              port: user.client.sftpPort,
+              username: user.client.sftpUser,
+              password: user.client.sftpPassword,
             })
-          )
+          : undefined;
+
+        const dirents = await readdirUtil(resolvedPath, sftpClient);
+        await Promise.all(
+          dirents.map(async (dirent) => {
+            if (dirent.isDirectory || dirent.isFile) {
+              return dirent.isDirectory ? directories.push(dirent.name) : files.push(entry.name);
+            }
+
+            if (dirent.isSymbolicLink) {
+              const stats = await statUtil(path.join(resolvedPath, dirent.name), sftpClient).catch(() => undefined);
+
+              if (stats.isDirectory || stats.isFile) {
+                stats.isDirectory ? directories.push(entry.name) : files.push(entry.name);
+              }
+            }
+          }),
+        );
+
+        if (sftpClient?.hasConnection()) await sftpClient.end();
       } catch (e) {
         const {code, message} = e as NodeJS.ErrnoException;
         if (code === 'ENOENT') {
