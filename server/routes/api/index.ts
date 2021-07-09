@@ -20,6 +20,7 @@ import feedMonitorRoutes from './feed-monitor';
 import {getAuthToken, verifyToken} from '../../util/authUtil';
 import torrentsRoutes from './torrents';
 import Users from 'server/models/Users';
+import SFTPConnection from 'server/util/sftpUtil';
 
 const router = express.Router();
 
@@ -103,7 +104,7 @@ router.get('/activity-stream', eventStream, clientActivityStream);
 router.get<unknown, unknown, unknown, {path: string; user: string; remote: boolean}>(
   '/directory-list',
   async (req, res): Promise<Response<unknown>> => {
-    const {path: inputPath} = req.query;
+    const {path: inputPath, user, remote} = req.query;
 
     if (typeof inputPath !== 'string' || !inputPath) {
       return res.status(422).json({code: 'EINVAL', message: 'Invalid argument'});
@@ -133,14 +134,14 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
         await Promise.all(
           dirents.map(async (dirent) => {
             if (dirent.isDirectory || dirent.isFile) {
-              return dirent.isDirectory ? directories.push(dirent.name) : files.push(entry.name);
+              return dirent.isDirectory ? directories.push(dirent.name) : files.push(dirent.name);
             }
 
             if (dirent.isSymbolicLink) {
               const stats = await statUtil(path.join(resolvedPath, dirent.name), sftpClient).catch(() => undefined);
 
-              if (stats.isDirectory || stats.isFile) {
-                stats.isDirectory ? directories.push(entry.name) : files.push(entry.name);
+              if (stats?.isDirectory || stats?.isFile) {
+                stats.isDirectory ? directories.push(dirent.name) : files.push(dirent.name);
               }
             }
           }),
@@ -157,13 +158,13 @@ router.get<unknown, unknown, unknown, {path: string; user: string; remote: boole
           return res.status(500).json({code, message});
         }
       }
+    })
 
-      return res.status(200).json({
-        path: resolvedPath,
-        separator: path.sep,
-        directories,
-        files,
-      });
+    return res.status(200).json({
+      path: resolvedPath,
+      separator: path.sep,
+      directories,
+      files,
     });
   },
 );
