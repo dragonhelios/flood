@@ -7,6 +7,7 @@ import LogoutButton from './LogoutButton';
 import NotificationsButton from './NotificationsButton';
 import SearchBox from './SearchBox';
 import SettingsButton from './SettingsButton';
+import SftpTransfersButton from './SftpTransfersButton';
 import SidebarActions from './SidebarActions';
 import SpeedLimitDropdown from './SpeedLimitDropdown';
 import StatusFilters from './StatusFilters';
@@ -30,6 +31,7 @@ const Sidebar: FC = () => (
       <SettingsButton />
       <FeedsButton />
       <NotificationsButton />
+      <SftpTransfersButton />
       <LogoutButton />
     </SidebarActions>
     <TransferData />

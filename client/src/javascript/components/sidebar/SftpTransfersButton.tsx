@@ -1,0 +1,32 @@
+import {FC, useRef} from 'react';
+import {useLingui} from '@lingui/react';
+import {SftpTransfer} from '@client/ui/icons';
+
+import UIActions from '@client/actions/UIActions';
+
+import Tooltip from '../general/Tooltip';
+
+const SftpTransfersButton: FC = () => {
+  const {i18n} = useLingui();
+  const tooltipRef = useRef<Tooltip>(null);
+
+  return (
+    <Tooltip
+      content={i18n._('sidebar.button.sftp')}
+      onClick={() => {
+        if (tooltipRef.current != null) {
+          tooltipRef.current.dismissTooltip();
+        }
+
+        UIActions.displayModal({id: 'sftp-transfers'});
+      }}
+      ref={tooltipRef}
+      position="bottom"
+      wrapperClassName="sidebar__action sidebar__icon-button
+          sidebar__icon-button--interactive tooltip__wrapper">
+      <SftpTransfer />
+    </Tooltip>
+  );
+};
+
+export default SftpTransfersButton;

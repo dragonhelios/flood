@@ -13,6 +13,7 @@ import SetTagsModal from './set-tags-modal/SetTagsModal';
 import SetTrackersModal from './set-trackers-modal/SetTrackersModal';
 import SettingsModal from './settings-modal/SettingsModal';
 import TorrentDetailsModal from './torrent-details-modal/TorrentDetailsModal';
+import SftpTransfersModal from './sftp-downloads-modal/SftpTransfersModal';
 import UIActions from '../../actions/UIActions';
 import UIStore from '../../stores/UIStore';
 
@@ -40,6 +41,8 @@ const createModal = (id: Modal['id']): React.ReactNode => {
       return <SettingsModal />;
     case 'torrent-details':
       return <TorrentDetailsModal />;
+    case 'sftp-transfers':
+      return <SftpTransfersModal />;
     default:
       return null;
   }

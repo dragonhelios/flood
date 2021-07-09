@@ -56,6 +56,7 @@ export {default as RemoveMini} from './RemoveMini';
 export {default as Search} from './Search';
 export {default as Seeds} from './Seeds';
 export {default as Settings} from './Settings';
+export {default as SftpTransfer} from './SftpTransfer';
 export {default as Spinner} from './Spinner';
 export {default as Start} from './Start';
 export {default as Stop} from './Stop';

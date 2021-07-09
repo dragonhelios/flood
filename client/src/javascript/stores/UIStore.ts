@@ -64,7 +64,8 @@ export type Modal =
         | 'remove-torrents'
         | 'set-taxonomy'
         | 'set-trackers'
-        | 'settings';
+        | 'settings'
+        | 'sftp-transfers';
     }
   | {
       id: 'add-torrents';
